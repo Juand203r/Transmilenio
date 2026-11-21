@@ -7,7 +7,10 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from motor import Red
+import time
+
+from motor import Red, simular_fila
+from motor.cola import Cola
 from motor.historial import AccionCerrar, AccionReabrir
 from motor.lista_doble import ListaDoble
 from motor.pila import Pila
@@ -624,6 +627,153 @@ class TestDeshacerRehacer(unittest.TestCase):
             contador += 1
         self.assertEqual(contador, 9800)
         self.assertEqual(foto(red), inicial)
+
+
+def fila_ingenua(llegadas, frecuencia, capacidad):
+    n = len(llegadas)
+    resultado = [None] * n
+    pendientes = sorted(range(n), key=lambda i: (llegadas[i], i))
+    salida = frecuencia
+    while pendientes:
+        suben = []
+        quedan = []
+        for i in pendientes:
+            if llegadas[i] <= salida and len(suben) < capacidad:
+                suben.append(i)
+            else:
+                quedan.append(i)
+        for i in suben:
+            resultado[i] = salida
+        pendientes = quedan
+        salida += frecuencia
+    return resultado
+
+
+class TestCola(unittest.TestCase):
+    def test_vacia(self):
+        cola = Cola()
+        self.assertTrue(cola.esta_vacia())
+        self.assertIsNone(cola.dequeue())
+        self.assertEqual(len(cola), 0)
+
+    def test_fifo(self):
+        cola = Cola()
+        for x in [1, 2, 3]:
+            cola.enqueue(x)
+        self.assertEqual(len(cola), 3)
+        self.assertEqual([cola.dequeue(), cola.dequeue(), cola.dequeue()], [1, 2, 3])
+        self.assertTrue(cola.esta_vacia())
+        self.assertIsNone(cola.dequeue())
+
+    def test_se_puede_reusar_despues_de_vaciarse(self):
+        cola = Cola()
+        cola.enqueue("A")
+        cola.dequeue()
+        cola.enqueue("B")
+        cola.enqueue("C")
+        self.assertEqual(cola.dequeue(), "B")
+        self.assertEqual(cola.dequeue(), "C")
+        self.assertTrue(cola.esta_vacia())
+
+    def test_intercalando_enqueue_y_dequeue(self):
+        cola = Cola()
+        esperado = []
+        random.seed(4)
+        for i in range(3000):
+            if random.random() < 0.55:
+                cola.enqueue(i)
+                esperado.append(i)
+            elif esperado:
+                self.assertEqual(cola.dequeue(), esperado.pop(0))
+            self.assertEqual(len(cola), len(esperado))
+
+
+class TestSimularFila(unittest.TestCase):
+    def test_ejemplo_del_enunciado(self):
+        self.assertEqual(simular_fila([30, 5, 5, 70], 60, 2), [120, 60, 60, 120])
+
+    def test_lista_vacia(self):
+        self.assertEqual(simular_fila([], 60, 2), [])
+
+    def test_un_solo_pasajero(self):
+        self.assertEqual(simular_fila([5], 60, 3), [60])
+        self.assertEqual(simular_fila([0], 60, 3), [60])
+        self.assertEqual(simular_fila([60], 60, 3), [60])
+        self.assertEqual(simular_fila([61], 60, 3), [120])
+
+    def test_capacidad_uno(self):
+        self.assertEqual(simular_fila([1, 1, 1, 1], 10, 1), [10, 20, 30, 40])
+
+    def test_mismo_segundo_respeta_el_orden_original(self):
+        self.assertEqual(simular_fila([7, 7, 7], 10, 2), [10, 10, 20])
+
+    def test_llegadas_desordenadas(self):
+        self.assertEqual(simular_fila([100, 1, 50, 2], 30, 1), [120, 30, 90, 60])
+
+    def test_fila_que_espera_varios_buses(self):
+        self.assertEqual(simular_fila([1, 1, 1, 1, 1], 10, 2), [10, 10, 20, 20, 30])
+
+    def test_llegada_exacta_en_multiplo_de_frecuencia(self):
+        self.assertEqual(simular_fila([60, 120, 121], 60, 5), [60, 120, 180])
+
+    def test_salto_de_buses_vacios(self):
+        self.assertEqual(simular_fila([10 ** 9], 1, 1), [10 ** 9])
+        a = 10 ** 9 + 1
+        self.assertEqual(simular_fila([a, 5], 60, 1), [-(-a // 60) * 60, 60])
+
+    def test_capacidad_o_frecuencia_invalida(self):
+        self.assertEqual(simular_fila([1, 2, 3], 60, 0), [None, None, None])
+        self.assertEqual(simular_fila([1, 2, 3], 0, 2), [None, None, None])
+        self.assertEqual(simular_fila([], 0, 0), [])
+
+    def test_no_modifica_la_entrada(self):
+        llegadas = [30, 5, 5, 70]
+        simular_fila(llegadas, 60, 2)
+        self.assertEqual(llegadas, [30, 5, 5, 70])
+
+    def test_ordenadas_y_desordenadas_dan_lo_mismo(self):
+        random.seed(8)
+        llegadas = [random.randint(0, 300) for _ in range(500)]
+        orden = sorted(range(500), key=lambda i: (llegadas[i], i))
+        ordenadas = [llegadas[i] for i in orden]
+        respuesta_ordenada = simular_fila(ordenadas, 17, 6)
+        respuesta = simular_fila(llegadas, 17, 6)
+        for posicion in range(500):
+            self.assertEqual(respuesta[orden[posicion]], respuesta_ordenada[posicion])
+
+    def test_contra_simulacion_ingenua(self):
+        random.seed(12)
+        for _ in range(400):
+            n = random.randint(0, 40)
+            tope = random.choice([0, 5, 60, 300])
+            llegadas = [random.randint(0, tope) for _ in range(n)]
+            frecuencia = random.randint(1, 25)
+            capacidad = random.randint(1, 6)
+            self.assertEqual(simular_fila(llegadas, frecuencia, capacidad),
+                             fila_ingenua(llegadas, frecuencia, capacidad))
+
+    def test_cientos_de_miles_de_pasajeros(self):
+        random.seed(21)
+        total = 300000
+        llegadas = [random.randint(0, 3600) for _ in range(total)]
+        frecuencia = 30
+        capacidad = 200
+        inicio = time.perf_counter()
+        salidas = simular_fila(llegadas, frecuencia, capacidad)
+        self.assertLess(time.perf_counter() - inicio, 20)
+        orden = sorted(range(total), key=lambda i: (llegadas[i], i))
+        por_bus = 0
+        bus_anterior = 0
+        for i in orden:
+            self.assertEqual(salidas[i] % frecuencia, 0)
+            self.assertGreaterEqual(salidas[i], llegadas[i])
+            self.assertGreaterEqual(salidas[i], bus_anterior)
+            if salidas[i] == bus_anterior:
+                por_bus += 1
+            else:
+                por_bus = 1
+                bus_anterior = salidas[i]
+            self.assertLessEqual(por_bus, capacidad)
 
 
 if __name__ == "__main__":
