@@ -1,0 +1,6 @@
+# Dependencias del proyecto TransMilenio
+# El motor principal (motor/) NO utiliza librerías externas (cumple 100% con las reglas del curso).
+# Las librerías siguientes son para el panel de rendimiento, análisis estadístico y visualización:
+numpy>=1.24.0
+pandas>=2.0.0
+matplotlib>=3.8.0

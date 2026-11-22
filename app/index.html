@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TransMilenio | Planeador de Viajes y Panel</title>
+  <style>
+    :root {
+      --tm-red: #C8102E;
+      --tm-red-dark: #9B0B23;
+      --tm-black: #1A1D20;
+      --tm-gray: #F4F6F8;
+      --tm-border: #E2E8F0;
+      --tm-text: #2D3748;
+      --tm-text-light: #718096;
+      --tm-green: #38A169;
+      --tm-blue: #3182CE;
+      --tm-yellow: #D69E2E;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+    body { display: flex; height: 100vh; background: var(--tm-gray); color: var(--tm-text); overflow: hidden; }
+
+    /* Sidebar */
+    .sidebar { width: 280px; background: var(--tm-black); color: white; display: flex; flex-direction: column; flex-shrink: 0; }
+    .brand { padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 12px; }
+    .brand-logo { width: 36px; height: 36px; background: var(--tm-red); border-radius: 8px; display: grid; place-items: center; font-weight: 900; font-size: 20px; color: white; }
+    .brand-title { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+    .brand-sub { font-size: 11px; color: var(--tm-text-light); text-transform: uppercase; letter-spacing: 1px; }
+
+    .nav-list { list-style: none; padding: 12px 8px; overflow-y: auto; flex: 1; }
+    .nav-item { padding: 10px 14px; margin-bottom: 4px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 500; color: #CBD5E0; transition: all 0.15s; }
+    .nav-item:hover { background: rgba(255,255,255,0.06); color: white; }
+    .nav-item.active { background: var(--tm-red); color: white; font-weight: 600; box-shadow: 0 4px 12px rgba(200,16,46,0.3); }
+    .nav-badge { margin-left: auto; font-size: 11px; background: rgba(255,255,255,0.15); padding: 2px 6px; border-radius: 4px; font-weight: 700; }
+
+    /* Main Content */
+    .main { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+    .topbar { background: white; border-bottom: 1px solid var(--tm-border); padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; }
+    .topbar-title { font-size: 20px; font-weight: 700; color: var(--tm-black); }
+    .system-status { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--tm-green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+
+    .content { padding: 32px; max-width: 1200px; margin: 0 auto; width: 100%; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; animation: fadeIn 0.2s ease-in; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Card UI */
+    .card { background: white; border-radius: 10px; border: 1px solid var(--tm-border); padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+    .card-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; color: var(--tm-black); display: flex; align-items: center; gap: 8px; }
+    .card-desc { font-size: 13px; color: var(--tm-text-light); margin-bottom: 20px; }
+
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--tm-black); }
+    .form-control { width: 100%; padding: 10px 14px; border: 1px solid var(--tm-border); border-radius: 6px; font-size: 14px; outline: none; transition: border-color 0.15s; background: white; }
+    .form-control:focus { border-color: var(--tm-red); box-shadow: 0 0 0 3px rgba(200,16,46,0.1); }
+    .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
+    .btn-primary { background: var(--tm-red); color: white; }
+    .btn-primary:hover { background: var(--tm-red-dark); }
+    .btn-secondary { background: #EDF2F7; color: var(--tm-text); }
+    .btn-secondary:hover { background: #E2E8F0; }
+    .btn-danger { background: #E53E3E; color: white; }
+    .btn-success { background: var(--tm-green); color: white; }
+
+    /* Results */
+    .result-box { margin-top: 20px; padding: 16px; border-radius: 8px; background: var(--tm-gray); border-left: 4px solid var(--tm-red); font-size: 14px; }
+    .result-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-weight: 700; font-size: 12px; }
+    .badge-open { background: #C6F6D5; color: #22543D; }
+    .badge-closed { background: #FED7D7; color: #742A2A; }
+    .badge-route { background: #EBF8FF; color: #2B6CB0; font-weight: bold; border: 1px solid #BEE3F8; }
+
+    /* Journey visualizer (Creative feature) */
+    .journey-timeline { display: flex; flex-direction: column; gap: 16px; margin-top: 24px; }
+    .timeline-step { display: flex; gap: 16px; position: relative; }
+    .step-marker { width: 36px; height: 36px; border-radius: 50%; background: var(--tm-red); color: white; display: grid; place-items: center; font-weight: 700; font-size: 14px; flex-shrink: 0; z-index: 2; }
+    .step-line { position: absolute; left: 17px; top: 36px; bottom: -16px; width: 3px; background: var(--tm-border); z-index: 1; }
+    .step-content { background: white; border: 1px solid var(--tm-border); border-radius: 8px; padding: 14px 18px; flex: 1; }
+    .step-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .step-route { font-size: 13px; font-weight: 700; color: var(--tm-red); text-transform: uppercase; }
+
+    /* Queue simulator visualizer (Creative feature) */
+    .queue-anim-container { background: #1A202C; border-radius: 8px; padding: 24px; color: white; margin-top: 20px; }
+    .bus-bay { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px dashed rgba(255,255,255,0.2); padding-bottom: 20px; margin-bottom: 20px; }
+    .bus-icon { background: var(--tm-red); padding: 10px 16px; border-radius: 6px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .passengers-line { display: flex; gap: 8px; overflow-x: auto; padding: 12px 0; }
+    .passenger-avatar { width: 32px; height: 32px; border-radius: 50%; background: #4A5568; display: grid; place-items: center; font-size: 11px; font-weight: bold; flex-shrink: 0; }
+    .passenger-avatar.boarded { background: var(--tm-green); }
+
+    /* Table styling */
+    .data-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
+    .data-table th, .data-table td { padding: 10px 14px; border: 1px solid var(--tm-border); text-align: left; }
+    .data-table th { background: var(--tm-gray); font-weight: 600; color: var(--tm-black); }
+    .data-table tr:nth-child(even) { background: #FAFAFA; }
+
+    /* Slope badge */
+    .slope-tag { font-family: monospace; font-weight: bold; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+    .slope-o1 { background: #C6F6D5; color: #22543D; }
+    .slope-on { background: #FEFCBF; color: #744210; }
+    .slope-on2 { background: #FED7D7; color: #742A2A; }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">TM</div>
+      <div>
+        <div class="brand-title">TransMilenio</div>
+        <div class="brand-sub">Sistema de Transporte</div>
+      </div>
+    </div>
+    <ul class="nav-list">
+      <li class="nav-item active" onclick="showTab('tab-buscar')">
+        <span>🔍 Buscar Estación</span>
+        <span class="nav-badge">R1</span>
+      </li>
+      <li class="nav-item" onclick="showTab('tab-autocompletar')">
+        <span>⚡ Autocompletar</span>
+        <span class="nav-badge">R2</span>
+      </li>
+      <li class="nav-item" onclick="showTab('tab-rango')">
+        <span>↔️ Listar Rango</span>
+        <span class="nav-badge">R3</span>
+      </li>
+      <li class="nav-item" onclick="showTab('tab-horario')">
+        <span>⏰ Próximo Bus</span>
+        <span class="nav-badge">R4</span>
+      </li>
+      <li class="nav-item" onclick="showTab('tab-viaje')">
+        <span>🗺️ Planear Viaje</span>
+        <span class="nav-badge">R5</span>
+      </li>
+      <li class="nav-item" onclick="showTab('tab-ranking')">
+        <span>🏆 Ranking Buses</span>
+        <span class="nav-badge">R6</span>
+      </li>
+      <li class="nav-item" onclick="showTab('tab-rutas')">
+        <span>🚌 Recorrido y Paradas</span>
+        <span class="nav-badge">R7</span>
+      </li>
+      <li class="nav-item" onclick="showTab('tab-operacion')">
+        <span>🔒 Cerrar / Reabrir</span>
+        <span class="nav-badge">R8</span>
+      </li>
+      <li class="nav-item" onclick="showTab('tab-historial')">
+        <span>↩️ Deshacer / Rehacer</span>
+        <span class="nav-badge">R9</span>
+      </li>
+      <li class="nav-item" onclick="showTab('tab-fila')">
+        <span>👥 Fila de Abordaje</span>
+        <span class="nav-badge">R10</span>
+      </li>
+      <li class="nav-item" onclick="showTab('tab-panel')">
+        <span>📊 Panel Rendimiento</span>
+        <span class="nav-badge">R11</span>
+      </li>
+    </ul>
+  </aside>
+
+  <!-- Main Container -->
+  <main class="main">
+    <header class="topbar">
+      <h1 class="topbar-title" id="page-title">Planear Viaje (R5)</h1>
+      <div class="system-status">
+        <div class="status-dot"></div>
+        <span id="network-info">Red Cargada (147 Estaciones)</span>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- R1: Buscar Estación -->
+      <section id="tab-buscar" class="tab-panel">
+        <div class="card">
+          <h2 class="card-title">R1 · Buscar una Estación</h2>
+          <p class="card-desc">Consulta el estado operacional de una estación exacta (ABIERTA, CERRADA o NO EXISTE).</p>
+          <div class="form-group">
+            <label class="form-label">Nombre exacto de la estación</label>
+            <input type="text" id="r1-nombre" class="form-control" list="lista-estaciones" placeholder="Ej: UNIVERSIDADES">
+          </div>
+          <button class="btn btn-primary" onclick="ejecutarR1()">Consultar Estado</button>
+          <div id="r1-res" class="result-box" style="display:none;"></div>
+        </div>
+      </section>
+
+      <!-- R2: Autocompletar -->
+      <section id="tab-autocompletar" class="tab-panel">
+        <div class="card">
+          <h2 class="card-title">R2 · Autocompletar Estaciones</h2>
+          <p class="card-desc">Búsqueda rápida por prefijo alfabético de hasta k estaciones abiertas.</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Prefijo de búsqueda</label>
+              <input type="text" id="r2-prefijo" class="form-control" placeholder="Ej: CALLE" oninput="ejecutarR2()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Límite k</label>
+              <input type="number" id="r2-k" class="form-control" value="5" min="1" max="50" onchange="ejecutarR2()">
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="ejecutarR2()">Buscar Sugerencias</button>
+          <div id="r2-res" class="result-box" style="display:none;"></div>
+        </div>
+      </section>
+
+      <!-- R3: Rango -->
+      <section id="tab-rango" class="tab-panel">
+        <div class="card">
+          <h2 class="card-title">R3 · Listar Rango de Estaciones</h2>
+          <p class="card-desc">Lista todas las estaciones abiertas en el rango lexicográfico [desde, hasta].</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Desde</label>
+              <input type="text" id="r3-desde" class="form-control" list="lista-estaciones" placeholder="Ej: CALLE 100">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Hasta</label>
+              <input type="text" id="r3-hasta" class="form-control" list="lista-estaciones" placeholder="Ej: CALLE 80">
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="ejecutarR3()">Consultar Rango</button>
+          <div id="r3-res" class="result-box" style="display:none;"></div>
+        </div>
+      </section>
+
+      <!-- R4: Próximo Bus -->
+      <section id="tab-horario" class="tab-panel">
+        <div class="card">
+          <h2 class="card-title">R4 · Próximo Bus</h2>
+          <p class="card-desc">Indica la hora (HH:MM) del siguiente bus de la ruta que pasará por la estación.</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Estación</label>
+              <input type="text" id="r4-estacion" class="form-control" list="lista-estaciones" placeholder="Ej: UNIVERSIDADES">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Ruta</label>
+              <input type="text" id="r4-ruta" class="form-control" list="lista-rutas" placeholder="Ej: 1-1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Hora actual (HH:MM)</label>
+              <input type="text" id="r4-hora" class="form-control" value="08:00" placeholder="08:00">
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="ejecutarR4()">Consultar Horario</button>
+          <div id="r4-res" class="result-box" style="display:none;"></div>
+        </div>
+      </section>
+
+      <!-- R5: Planear Viaje -->
+      <section id="tab-viaje" class="tab-panel active">
+        <div class="card">
+          <h2 class="card-title">🗺️ R5 · Planear Viaje Eficiente (Mínimas Paradas)</h2>
+          <p class="card-desc">Encuentra la mejor alternativa directa o con 1 solo transbordo con menor número de estaciones recorridas.</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">🟢 Estación de Origen</label>
+              <input type="text" id="r5-origen" class="form-control" list="lista-estaciones" placeholder="Ej: UNIVERSIDADES">
+            </div>
+            <div class="form-group">
+              <label class="form-label">🏁 Estación de Destino</label>
+              <input type="text" id="r5-destino" class="form-control" list="lista-estaciones" placeholder="Ej: PORTAL ELDORADO">
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="ejecutarR5()">Calcular Mejor Ruta</button>
+          
+          <div id="r5-visualizer" style="display:none;">
+            <div class="journey-timeline" id="journey-steps"></div>
+          </div>
+          <div id="r5-res" class="result-box" style="display:none;"></div>
+        </div>
+      </section>
+
+      <!-- R6: Ranking -->
+      <section id="tab-ranking" class="tab-panel">
+        <div class="card">
+          <h2 class="card-title">🏆 R6 · Ranking de Estaciones Más Concurridas</h2>
+          <p class="card-desc">Estaciones abiertas con mayor volumen de buses al día ordenadas de mayor a menor.</p>
+          <div class="form-group" style="max-width: 250px;">
+            <label class="form-label">Top k Estaciones</label>
+            <input type="number" id="r6-k" class="form-control" value="10" min="1" max="100">
+          </div>
+          <button class="btn btn-primary" onclick="ejecutarR6()">Consultar Ranking</button>
+          <div id="r6-res" class="result-box" style="display:none;"></div>
+        </div>
+      </section>
+
+      <!-- R7: Rutas y Paradas -->
+      <section id="tab-rutas" class="tab-panel">
+        <div class="card">
+          <h2 class="card-title">🚌 R7 · Recorrido y Modificación de Rutas</h2>
+          <p class="card-desc">Visualiza el recorrido en ambos sentidos o añade/elimina paradas en tiempo real.</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Ruta</label>
+              <input type="text" id="r7-ruta" class="form-control" list="lista-rutas" placeholder="Ej: 1-1">
+            </div>
+            <div class="form-group" style="display: flex; align-items: flex-end; gap: 10px;">
+              <button class="btn btn-primary" onclick="ejecutarR7Recorrido(false)">Ver Ida ➡️</button>
+              <button class="btn btn-secondary" onclick="ejecutarR7Recorrido(true)">Ver Regreso ⬅️</button>
+            </div>
+          </div>
+          <div id="r7-recorrido-res" class="result-box" style="display:none;"></div>
+
+          <hr style="margin: 24px 0; border: none; border-top: 1px solid var(--tm-border);">
+          <h3 style="font-size: 15px; margin-bottom: 12px;">Editar Paradas de la Ruta</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Nueva Estación</label>
+              <input type="text" id="r7-nueva" class="form-control" list="lista-estaciones" placeholder="Nombre estación">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Insertar después de</label>
+              <input type="text" id="r7-despues" class="form-control" list="lista-estaciones" placeholder="Estación de referencia">
+            </div>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-success" onclick="ejecutarR7Agregar()">+ Agregar Parada</button>
+            <button class="btn btn-danger" onclick="ejecutarR7Quitar()">- Quitar Parada</button>
+          </div>
+          <div id="r7-edit-res" class="result-box" style="display:none;"></div>
+        </div>
+      </section>
+
+      <!-- R8: Operación Cerrar / Reabrir -->
+      <section id="tab-operacion" class="tab-panel">
+        <div class="card">
+          <h2 class="card-title">🔒 R8 · Cerrar / Reabrir Estaciones</h2>
+          <p class="card-desc">Simula contingencias operacionales. Las estaciones cerradas se omiten en búsquedas, autocompletado y viajes.</p>
+          <div class="form-group">
+            <label class="form-label">Estación objetivo</label>
+            <input type="text" id="r8-nombre" class="form-control" list="lista-estaciones" placeholder="Ej: CALLE 26">
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-danger" onclick="ejecutarR8('cerrar')">Cerrar Estación</button>
+            <button class="btn btn-success" onclick="ejecutarR8('reabrir')">Reabrir Estación</button>
+          </div>
+          <div id="r8-res" class="result-box" style="display:none;"></div>
+        </div>
+      </section>
+
+      <!-- R9: Historial Deshacer / Rehacer -->
+      <section id="tab-historial" class="tab-panel">
+        <div class="card">
+          <h2 class="card-title">↩️ R9 · Deshacer y Rehacer Operaciones</h2>
+          <p class="card-desc">Historial transaccional con Pila LIFO. Permite revertir cierres, reaperturas o ediciones de paradas.</p>
+          <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+            <button class="btn btn-secondary" onclick="ejecutarR9('deshacer')">↩️ Deshacer Acción</button>
+            <button class="btn btn-primary" onclick="ejecutarR9('rehacer')">↪️ Rehacer Acción</button>
+          </div>
+          <div id="r9-res" class="result-box" style="display:none;"></div>
+        </div>
+      </section>
+
+      <!-- R10: Simulación de Fila -->
+      <section id="tab-fila" class="tab-panel">
+        <div class="card">
+          <h2 class="card-title">👥 R10 · Fila de Abordaje en Hora Pico</h2>
+          <p class="card-desc">Simula la cola de abordaje FIFO (en O(n) con Cola vs O(n²) con pop(0)).</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Segundos de llegada de pasajeros (separados por coma)</label>
+              <input type="text" id="r10-llegadas" class="form-control" value="30, 5, 5, 70, 95, 120, 130">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Frecuencia bus (segundos)</label>
+              <input type="number" id="r10-frec" class="form-control" value="60">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Capacidad del bus</label>
+              <input type="number" id="r10-cap" class="form-control" value="2">
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="ejecutarR10()">Ejecutar Simulación</button>
+          
+          <div id="r10-visualizer" class="queue-anim-container" style="display:none;">
+            <div class="bus-bay">
+              <div class="bus-icon">🚌 Bus TransMilenio</div>
+              <div id="bus-status-text">Despacho cada ciclo</div>
+            </div>
+            <div class="passengers-line" id="passengers-strip"></div>
+          </div>
+          <div id="r10-res" class="result-box" style="display:none;"></div>
+        </div>
+      </section>
+
+      <!-- R11: Panel de Rendimiento -->
+      <section id="tab-panel" class="tab-panel">
+        <div class="card">
+          <h2 class="card-title">📊 R11 · Panel de Rendimiento y Análisis Big-O</h2>
+          <p class="card-desc">Cálculo de pendientes en escala log-log (0 = O(1), 1 = O(n), 2 = O(n²)) sobre redes sintéticas de tamaño creciente.</p>
+          <div style="display:flex; gap:12px; margin-bottom: 20px;">
+            <button class="btn btn-primary" onclick="cargarRendimiento()">🔄 Actualizar Datos de Benchmark</button>
+          </div>
+
+          <table class="data-table" id="tabla-rendimiento">
+            <thead>
+              <tr>
+                <th>Operación</th>
+                <th>Responsable</th>
+                <th>Definición de n</th>
+                <th>O Grande</th>
+                <th>Pendiente Esp.</th>
+                <th>Pendiente Med.</th>
+                <th>Diagnóstico</th>
+              </tr>
+            </thead>
+            <tbody id="rendimiento-body">
+              <tr><td colspan="7" style="text-align:center;">Cargando mediciones...</td></tr>
+            </tbody>
+          </table>
+
+          <div style="margin-top: 24px; padding: 16px; background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; font-size: 13px;">
+            <strong>Nota de interpretación:</strong> Las pendientes cercanas a 0.0 certifican operaciones de orden constante O(1) o logarítmico O(log N). La comparación de <em>simular_fila</em> (pendiente ~1.0) frente a <em>simular_fila_pop0</em> (pendiente ~1.5-2.0) evidencia empíricamente la penalización cuadrática por usar operaciones prohibidas en arreglos.
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Datalists for autocomplete -->
+  <datalist id="lista-estaciones"></datalist>
+  <datalist id="lista-rutas"></datalist>
+
+  <script>
+    // Navigation Tabs
+    const titles = {
+      'tab-buscar': 'Buscar Estación (R1)',
+      'tab-autocompletar': 'Autocompletar Estaciones (R2)',
+      'tab-rango': 'Listar Rango de Estaciones (R3)',
+      'tab-horario': 'Próximo Bus (R4)',
+      'tab-viaje': 'Planear Viaje Eficiente (R5)',
+      'tab-ranking': 'Ranking de Buses (R6)',
+      'tab-rutas': 'Recorrido y Edición de Paradas (R7)',
+      'tab-operacion': 'Operación Cerrar / Reabrir (R8)',
+      'tab-historial': 'Historial Deshacer / Rehacer (R9)',
+      'tab-fila': 'Simulación de Fila de Abordaje (R10)',
+      'tab-panel': 'Panel de Rendimiento Big-O (R11)'
+    };
+
+    function showTab(tabId) {
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+      const activePanel = document.getElementById(tabId);
+      if (activePanel) activePanel.classList.add('active');
+      document.getElementById('page-title').innerText = titles[tabId] || 'TransMilenio';
+      event.currentTarget.classList.add('active');
+      if (tabId === 'tab-panel') cargarRendimiento();
+    }
+
+    // Initial Data load for datalists
+    async function cargarListasIniciales() {
+      try {
+        const [resEst, resRut] = await Promise.all([
+          fetch('/api/estaciones').then(r => r.json()),
+          fetch('/api/rutas').then(r => r.json())
+        ]);
+        const dlEst = document.getElementById('lista-estaciones');
+        dlEst.innerHTML = resEst.map(e => `<option value="${e}">`).join('');
+        const dlRut = document.getElementById('lista-rutas');
+        dlRut.innerHTML = resRut.map(r => `<option value="${r}">`).join('');
+        document.getElementById('network-info').innerText = `Red Activa (${resEst.length} Estaciones, ${resRut.length} Rutas)`;
+      } catch (err) {
+        console.error("Error al cargar estaciones/rutas:", err);
+      }
+    }
+    cargarListasIniciales();
+
+    // R1: Estado
+    async function ejecutarR1() {
+      const nombre = document.getElementById('r1-nombre').value.trim();
+      const resBox = document.getElementById('r1-res');
+      resBox.style.display = 'block';
+      if (!nombre) { resBox.innerHTML = 'Por favor ingresa un nombre.'; return; }
+      const res = await fetch(`/api/estado?nombre=${encodeURIComponent(nombre)}`).then(r => r.json());
+      const badge = res.estado === 'ABIERTA' ? 'badge-open' : 'badge-closed';
+      resBox.innerHTML = `<strong>Estado:</strong> <span class="result-badge ${badge}">${res.estado}</span>`;
+    }
+
+    // R2: Autocompletar
+    async function ejecutarR2() {
+      const pref = document.getElementById('r2-prefijo').value.trim();
+      const k = document.getElementById('r2-k').value || 5;
+      const resBox = document.getElementById('r2-res');
+      if (!pref) { resBox.style.display = 'none'; return; }
+      resBox.style.display = 'block';
+      const data = await fetch(`/api/autocompletar?prefijo=${encodeURIComponent(pref)}&k=${k}`).then(r => r.json());
+      if (!data || data.length === 0) {
+        resBox.innerHTML = '<em>No se encontraron estaciones con ese prefijo.</em>';
+      } else {
+        resBox.innerHTML = `<strong>Sugerencias (${data.length}):</strong><ul style="margin:8px 0 0 20px;">${data.map(e => `<li>${e}</li>`).join('')}</ul>`;
+      }
+    }
+
+    // R3: Rango
+    async function ejecutarR3() {
+      const desde = document.getElementById('r3-desde').value.trim();
+      const hasta = document.getElementById('r3-hasta').value.trim();
+      const resBox = document.getElementById('r3-res');
+      resBox.style.display = 'block';
+      const data = await fetch(`/api/rango?desde=${encodeURIComponent(desde)}&hasta=${encodeURIComponent(hasta)}`).then(r => r.json());
+      if (!data || data.length === 0) {
+        resBox.innerHTML = '<em>No hay estaciones abiertas en ese rango.</em>';
+      } else {
+        resBox.innerHTML = `<strong>Estaciones en rango (${data.length}):</strong><div style="max-height:200px; overflow-y:auto; margin-top:8px;"><ol style="margin-left:20px;">${data.map(e => `<li>${e}</li>`).join('')}</ol></div>`;
+      }
+    }
+
+    // R4: Próximo Bus
+    async function ejecutarR4() {
+      const est = document.getElementById('r4-estacion').value.trim();
+      const ruta = document.getElementById('r4-ruta').value.trim();
+      const hora = document.getElementById('r4-hora').value.trim();
+      const resBox = document.getElementById('r4-res');
+      resBox.style.display = 'block';
+      const data = await fetch(`/api/proximo_bus?estacion=${encodeURIComponent(est)}&ruta=${encodeURIComponent(ruta)}&hora=${encodeURIComponent(hora)}`).then(r => r.json());
+      if (data.proximo_bus) {
+        resBox.innerHTML = `🚌 El siguiente bus de <strong>${ruta}</strong> en <strong>${est}</strong> pasa a las: <span class="result-badge badge-route">${data.proximo_bus}</span>`;
+      } else {
+        resBox.innerHTML = `⚠️ No hay más despachos programados ese día para <strong>${ruta}</strong> en <strong>${est}</strong>.`;
+      }
+    }
+
+    // R5: Planear Viaje con Línea Visual de Estaciones (Creative Feature 1)
+    async function ejecutarR5() {
+      const orig = document.getElementById('r5-origen').value.trim();
+      const dest = document.getElementById('r5-destino').value.trim();
+      const resBox = document.getElementById('r5-res');
+      const visualizer = document.getElementById('r5-visualizer');
+      const stepsDiv = document.getElementById('journey-steps');
+      resBox.style.display = 'block';
+
+      if (!orig || !dest) {
+        resBox.innerHTML = 'Por favor especifica tanto el origen como el destino.';
+        visualizer.style.display = 'none';
+        return;
+      }
+
+      const res = await fetch(`/api/viaje?origen=${encodeURIComponent(orig)}&destino=${encodeURIComponent(dest)}`).then(r => r.json());
+      const viaje = res.viaje;
+
+      if (!viaje || viaje.length === 0) {
+        resBox.innerHTML = `❌ No se encontró ningún viaje posible entre <strong>${orig}</strong> y <strong>${dest}</strong> (verifica si alguna estación está cerrada o sin conexión).`;
+        visualizer.style.display = 'none';
+        return;
+      }
+
+      visualizer.style.display = 'block';
+      if (viaje.length === 1) {
+        const [r, s, b] = viaje[0];
+        resBox.innerHTML = `✨ <strong>Viaje Directo Encontrado (1 tramo):</strong> Toma la ruta <span class="result-badge badge-route">${r}</span> en <strong>${s}</strong> y desciende en <strong>${b}</strong>.`;
+        stepsDiv.innerHTML = `
+          <div class="timeline-step">
+            <div class="step-marker" style="background:var(--tm-green);">🟢</div>
+            <div class="step-line"></div>
+            <div class="step-content">
+              <div class="step-header">
+                <strong>Subir en: ${s}</strong>
+                <span class="result-badge badge-route">${r}</span>
+              </div>
+              <p style="font-size:12px; color:var(--tm-text-light);">Aborda el bus de la ruta ${r}</p>
+            </div>
+          </div>
+          <div class="timeline-step">
+            <div class="step-marker" style="background:var(--tm-red);">🏁</div>
+            <div class="step-content">
+              <div class="step-header">
+                <strong>Destino Final: ${b}</strong>
+                <span class="result-badge badge-open">Llegada</span>
+              </div>
+              <p style="font-size:12px; color:var(--tm-text-light);">Desciende en la estación de destino</p>
+            </div>
+          </div>
+        `;
+      } else {
+        const [r1, s1, b1] = viaje[0];
+        const [r2, s2, b2] = viaje[1];
+        resBox.innerHTML = `🔄 <strong>Viaje con 1 Transbordo (2 tramos):</strong> Toma ruta <span class="result-badge badge-route">${r1}</span> hasta <strong>${b1}</strong>, transborda a la ruta <span class="result-badge badge-route">${r2}</span> y desciende en <strong>${b2}</strong>.`;
+        stepsDiv.innerHTML = `
+          <div class="timeline-step">
+            <div class="step-marker" style="background:var(--tm-green);">🟢</div>
+            <div class="step-line"></div>
+            <div class="step-content">
+              <div class="step-header">
+                <strong>Subir en: ${s1}</strong>
+                <span class="result-badge badge-route">${r1}</span>
+              </div>
+              <p style="font-size:12px; color:var(--tm-text-light);">Tramo 1: Aborda la ruta ${r1}</p>
+            </div>
+          </div>
+          <div class="timeline-step">
+            <div class="step-marker" style="background:var(--tm-yellow);">🔄</div>
+            <div class="step-line"></div>
+            <div class="step-content">
+              <div class="step-header">
+                <strong>Transbordo en: ${b1}</strong>
+                <span class="result-badge badge-route">${r2}</span>
+              </div>
+              <p style="font-size:12px; color:var(--tm-text-light);">Baja del bus ${r1} y cambia a la ruta ${r2} sin salir de la estación</p>
+            </div>
+          </div>
+          <div class="timeline-step">
+            <div class="step-marker" style="background:var(--tm-red);">🏁</div>
+            <div class="step-content">
+              <div class="step-header">
+                <strong>Destino Final: ${b2}</strong>
+                <span class="result-badge badge-open">Llegada</span>
+              </div>
+              <p style="font-size:12px; color:var(--tm-text-light);">Desciende en la estación de destino final</p>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // R6: Ranking
+    async function ejecutarR6() {
+      const k = document.getElementById('r6-k').value || 10;
+      const resBox = document.getElementById('r6-res');
+      resBox.style.display = 'block';
+      const data = await fetch(`/api/ranking?k=${k}`).then(r => r.json());
+      if (!data || data.length === 0) {
+        resBox.innerHTML = '<em>No hay datos de ranking disponibles.</em>';
+      } else {
+        resBox.innerHTML = `<strong>Top ${data.length} Estaciones con más buses/día:</strong>
+          <table class="data-table">
+            <tr><th>#</th><th>Estación</th><th>Buses al Día</th></tr>
+            ${data.map((item, idx) => `<tr><td>${idx+1}</td><td><strong>${item[0]}</strong></td><td>${item[1]} buses</td></tr>`).join('')}
+          </table>`;
+      }
+    }
+
+    // R7: Recorrido y Edición
+    async function ejecutarR7Recorrido(alReves) {
+      const ruta = document.getElementById('r7-ruta').value.trim();
+      const resBox = document.getElementById('r7-recorrido-res');
+      resBox.style.display = 'block';
+      const data = await fetch(`/api/recorrido?ruta=${encodeURIComponent(ruta)}&al_reves=${alReves}`).then(r => r.json());
+      if (!data || data.length === 0) {
+        resBox.innerHTML = `<em>La ruta ${ruta} no existe o no tiene paradas.</em>`;
+      } else {
+        const sentido = alReves ? "Regreso" : "Ida";
+        resBox.innerHTML = `<strong>Recorrido de ${ruta} (${sentido} - ${data.length} paradas):</strong><ol style="margin:8px 0 0 20px;">${data.map(p => `<li>${p}</li>`).join('')}</ol>`;
+      }
+    }
+
+    async function ejecutarR7Agregar() {
+      const ruta = document.getElementById('r7-ruta').value.trim();
+      const nueva = document.getElementById('r7-nueva').value.trim();
+      const despues = document.getElementById('r7-despues').value.trim();
+      const resBox = document.getElementById('r7-edit-res');
+      resBox.style.display = 'block';
+      const res = await fetch('/api/agregar_parada', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ruta, nueva, despues_de: despues})
+      }).then(r => r.json());
+      resBox.innerHTML = res.exito ? `✅ Parada <strong>${nueva}</strong> agregada con éxito después de <strong>${despues}</strong> en la ruta ${ruta}.` : `❌ No se pudo agregar la parada. Verifica que la ruta y estaciones existan y no estén repetidas.`;
+    }
+
+    async function ejecutarR7Quitar() {
+      const ruta = document.getElementById('r7-ruta').value.trim();
+      const estacion = document.getElementById('r7-nueva').value.trim() || document.getElementById('r7-despues').value.trim();
+      const resBox = document.getElementById('r7-edit-res');
+      resBox.style.display = 'block';
+      const res = await fetch('/api/quitar_parada', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ruta, estacion})
+      }).then(r => r.json());
+      resBox.innerHTML = res.exito ? `🗑️ Parada <strong>${estacion}</strong> retirada exitosamente de la ruta ${ruta}.` : `❌ No se pudo retirar la parada.`;
+    }
+
+    // R8: Cerrar / Reabrir
+    async function ejecutarR8(accion) {
+      const nombre = document.getElementById('r8-nombre').value.trim();
+      const resBox = document.getElementById('r8-res');
+      resBox.style.display = 'block';
+      const res = await fetch(`/api/${accion}?nombre=${encodeURIComponent(nombre)}`).then(r => r.json());
+      resBox.innerHTML = res.cambio ? `✅ Operación exitosa: La estación <strong>${nombre}</strong> cambió de estado.` : `⚠️ No se pudo realizar la acción: la estación no existe o ya estaba en ese estado.`;
+    }
+
+    // R9: Deshacer / Rehacer
+    async function ejecutarR9(tipo) {
+      const resBox = document.getElementById('r9-res');
+      resBox.style.display = 'block';
+      const res = await fetch(`/api/${tipo}`).then(r => r.json());
+      resBox.innerHTML = res.exito ? `✅ Operación <strong>${tipo.toUpperCase()}</strong> ejecutada exitosamente.` : `⚠️ No hay más operaciones pendientes en el historial para ${tipo}.`;
+    }
+
+    // R10: Simulación de Fila Animada (Creative Feature 2)
+    async function ejecutarR10() {
+      const llegadasStr = document.getElementById('r10-llegadas').value;
+      const llegadas = llegadasStr.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+      const frecuencia = parseInt(document.getElementById('r10-frec').value);
+      const capacidad = parseInt(document.getElementById('r10-cap').value);
+      const resBox = document.getElementById('r10-res');
+      const visualizer = document.getElementById('r10-visualizer');
+      const strip = document.getElementById('passengers-strip');
+
+      resBox.style.display = 'block';
+      visualizer.style.display = 'block';
+
+      const res = await fetch('/api/simular_fila', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({llegadas, frecuencia, capacidad})
+      }).then(r => r.json());
+
+      const salidas = res.salidas;
+      resBox.innerHTML = `<strong>Resultados de salida (mismo orden de llegada):</strong><br>[${salidas.join(', ')}] seg.`;
+
+      // Render passenger avatar strip
+      strip.innerHTML = llegadas.map((llegada, idx) => {
+        const salida = salidas[idx];
+        const espera = salida - llegada;
+        return `<div class="passenger-avatar boarded" title="Pasajero #${idx+1} | Llegó: ${llegada}s | Salió: ${salida}s | Espera: ${espera}s">P${idx+1}</div>`;
+      }).join('');
+    }
+
+    // R11: Panel de Rendimiento
+    async function cargarRendimiento() {
+      const tbody = document.getElementById('rendimiento-body');
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Consultando métricas de rendimiento...</td></tr>';
+      try {
+        const data = await fetch('/api/rendimiento').then(r => r.json());
+        const ops = data.operaciones || {};
+        const filasHtml = Object.keys(ops).map(op => {
+          const item = ops[op];
+          const esp = item.pendiente_esperada.toFixed(1);
+          const med = item.pendiente_medida.toFixed(1);
+          const diff = Math.abs(item.pendiente_esperada - item.pendiente_medida);
+          const badgeClass = diff <= 0.4 ? 'slope-o1' : 'slope-on2';
+          const diag = diff <= 0.4 ? 'Conforme' : 'Desvío / Ruido';
+          return `
+            <tr>
+              <td><strong>${op}</strong></td>
+              <td>${item.responsable}</td>
+              <td><small>${item.n_def}</small></td>
+              <td><code>${item.o_grande}</code></td>
+              <td><span class="slope-tag slope-o1">${esp}</span></td>
+              <td><span class="slope-tag ${badgeClass}">${med}</span></td>
+              <td><strong>${diag}</strong></td>
+            </tr>
+          `;
+        }).join('');
+        tbody.innerHTML = filasHtml;
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">Error al cargar datos de rendimiento.</td></tr>';
+      }
+    }
+  </script>
+</body>
+</html>
