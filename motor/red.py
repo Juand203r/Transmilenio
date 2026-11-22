@@ -6,6 +6,7 @@ from .ordenar import merge_sort, primer_mayor_o_igual
 from .pila import Pila
 from .ranking import Ranking
 from .tabla_hash import TablaHash
+from .abb import AVL
 from .viaje import planear_viaje
 
 
@@ -136,7 +137,14 @@ class Red:
                 estacion.buses_dia += len(lista)
 
     def _construir_abiertas(self):
-        pass
+        """Arma el ABB balanceado (AVL) con los nombres de las estaciones abiertas,
+        ordenados con merge_sort y tomando el del medio como raiz. O(N log N)."""
+        nombres = []
+        for estacion in self.estaciones.valores():
+            if estacion.abierta:
+                nombres.append(estacion.nombre)
+        self.abiertas = AVL()
+        self.abiertas.construir(merge_sort(nombres))
 
     def _construir_ranking(self):
         """Arma el ranking (R6) con las estaciones abiertas: ordena las claves
@@ -168,19 +176,35 @@ class Red:
         return self.ranking_estructura.actualizar(nombre, estacion.buses_dia)
 
     def _abiertas_quitar(self, nombre):
-        pass
+        """Saca la estacion del arbol de abiertas (al cerrarla). O(log N)."""
+        return self.abiertas.borrar(nombre)
 
     def _abiertas_poner(self, nombre):
-        pass
+        """Vuelve a meter la estacion en el arbol de abiertas (al reabrirla). O(log N)."""
+        return self.abiertas.insertar(nombre)
 
     def estado(self, nombre):
-        pass
+        """R1: "ABIERTA", "CERRADA" o "NO EXISTE". O(1) promedio (tabla hash)."""
+        estacion = self.estaciones.get(nombre)
+        if estacion is None:
+            return "NO EXISTE"
+        if estacion.abierta:
+            return "ABIERTA"
+        return "CERRADA"
 
     def autocompletar(self, prefijo, k):
-        pass
+        """R2: hasta k abiertas que empiezan por prefijo, en orden alfabetico.
+        Todas quedan entre prefijo y prefijo + un caracter mayor que cualquier
+        letra, asi que es un rango del ABB que para al juntar k. O(log N + k)."""
+        if k <= 0:
+            return []
+        return self.abiertas.rango(prefijo, prefijo + "\uffff", k)
 
     def rango(self, desde, hasta):
-        pass
+        """R3: abiertas entre desde y hasta (inclusive), en orden. O(log N + m)."""
+        if hasta < desde:
+            return []
+        return self.abiertas.rango(desde, hasta)
 
     def proximo_bus(self, estacion, ruta, hora):
         """R4 (Gabriel Matiz): hora 'HH:MM' del primer bus de esa ruta en esa
@@ -287,10 +311,33 @@ class Red:
         return lista.nombres(al_reves)
 
     def cerrar(self, nombre):
-        pass
+        """R8: True si la cerro; False si no existe o ya estaba cerrada.
+        El cambio queda en la pila de deshacer (R9). O(log N)."""
+        return self._ejecutar(AccionCerrar(self, nombre))
 
     def reabrir(self, nombre):
-        pass
+        """R8: True si la reabrio; False si no existe o ya estaba abierta. O(log N)."""
+        return self._ejecutar(AccionReabrir(self, nombre))
+
+    def _cerrar(self, nombre):
+        """Marca la estacion cerrada y la saca del ABB de abiertas y del ranking."""
+        estacion = self.estaciones.get(nombre)
+        if estacion is None or not estacion.abierta:
+            return False
+        estacion.abierta = False
+        self._abiertas_quitar(nombre)
+        self._ranking_quitar(nombre)
+        return True
+
+    def _reabrir(self, nombre):
+        """Marca la estacion abierta y la vuelve a meter en el ABB y en el ranking."""
+        estacion = self.estaciones.get(nombre)
+        if estacion is None or estacion.abierta:
+            return False
+        estacion.abierta = True
+        self._abiertas_poner(nombre)
+        self._ranking_poner(nombre)
+        return True
 
     def deshacer(self):
         if self.pila_deshacer.esta_vacia():
