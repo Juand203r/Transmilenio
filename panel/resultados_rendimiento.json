@@ -1,29 +1,29 @@
 {
   "tamanos": [
-    500,
-    1000,
-    2000,
-    4000
+    10000,
+    20000,
+    40000,
+    80000
   ],
-  "repeticiones": 2,
+  "repeticiones": 3,
   "operaciones": {
     "Carga Red": {
       "responsable": "Juandi / Todos",
       "n_def": "N = Total de estaciones en la red",
       "o_grande": "O(N log N)",
       "pendiente_esperada": 1.0,
-      "pendiente_medida": 0.914,
+      "pendiente_medida": 1.262,
       "tamanos_n": [
-        500,
-        1000,
-        2000,
-        4000
+        10000,
+        20000,
+        40000,
+        80000
       ],
       "tiempos_segundos": [
-        0.01925,
-        0.027102,
-        0.06172,
-        0.120869
+        0.9742099170000529,
+        2.551890704000016,
+        6.407569072999991,
+        13.232016826999939
       ],
       "categoria": "Carga y Estructuras",
       "explicacion": "Lectura de archivos CSV e inserción en tablas hash O(N) y construcción de estructuras O(N log N). Pendiente cercana a 1.0."
@@ -33,18 +33,18 @@
       "n_def": "N = Total de estaciones",
       "o_grande": "O(1) / O(log N)",
       "pendiente_esperada": 0.0,
-      "pendiente_medida": -0.054,
+      "pendiente_medida": 0.212,
       "tamanos_n": [
-        500,
-        1000,
-        2000,
-        4000
+        10000,
+        20000,
+        40000,
+        80000
       ],
       "tiempos_segundos": [
-        1e-06,
-        1e-06,
-        1e-06,
-        1e-06
+        2.2680149999132483e-07,
+        4.7005649997799993e-07,
+        4.1017499995632535e-07,
+        3.8745000000517393e-07
       ],
       "categoria": "Consultas",
       "explicacion": "Búsqueda directa por clave. En tabla hash O(1) y en ABB balanceado O(log N). Pendiente plana (~0)."
@@ -54,18 +54,18 @@
       "n_def": "N = Estaciones abiertas, k = cupo",
       "o_grande": "O(log N + k)",
       "pendiente_esperada": 0.1,
-      "pendiente_medida": -0.154,
+      "pendiente_medida": 0.059,
       "tamanos_n": [
-        500,
-        1000,
-        2000,
-        4000
+        10000,
+        20000,
+        40000,
+        80000
       ],
       "tiempos_segundos": [
-        1e-06,
-        0.0,
-        0.0,
-        0.0
+        3.111013999955503e-06,
+        3.2349389999808407e-06,
+        3.604971500010379e-06,
+        3.440025999964291e-06
       ],
       "categoria": "Consultas",
       "explicacion": "Búsqueda del prefijo en árbol O(log N) y recorrido in-order acotado a k elementos. Crecimiento sublineal."
@@ -75,18 +75,18 @@
       "n_def": "N = Estaciones abiertas, m = elementos en rango",
       "o_grande": "O(log N + m)",
       "pendiente_esperada": 0.1,
-      "pendiente_medida": -0.274,
+      "pendiente_medida": 0.274,
       "tamanos_n": [
-        500,
-        1000,
-        2000,
-        4000
+        10000,
+        20000,
+        40000,
+        80000
       ],
       "tiempos_segundos": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
+        6.177386499985005e-06,
+        6.766689000016868e-06,
+        9.750909499985027e-06,
+        1.030691350001689e-05
       ],
       "categoria": "Consultas",
       "explicacion": "Búsqueda del límite inferior O(log N) y recorrido in-order hasta límite superior. Pendiente cercana a 0 para rangos pequeños."
@@ -96,18 +96,18 @@
       "n_def": "H = Horarios de la ruta en la estación",
       "o_grande": "O(log H) ≈ O(1) resp. a N",
       "pendiente_esperada": 0.0,
-      "pendiente_medida": -0.189,
+      "pendiente_medida": 0.136,
       "tamanos_n": [
-        500,
-        1000,
-        2000,
-        4000
+        10000,
+        20000,
+        40000,
+        80000
       ],
       "tiempos_segundos": [
-        1e-06,
-        1e-06,
-        0.0,
-        0.0
+        4.119392999996308e-06,
+        5.251016999977765e-06,
+        5.713319499989211e-06,
+        5.4820889999973584e-06
       ],
       "categoria": "Viajes y Horarios",
       "explicacion": "Consulta en tabla hash O(1) y búsqueda binaria sobre los horarios del día. No depende de N (estaciones de la ciudad)."
@@ -115,41 +115,41 @@
     "ranking (R6)": {
       "responsable": "Gabito",
       "n_def": "k = cupo pedido, N = estaciones abiertas",
-      "o_grande": "O(k log N) o O(k)",
+      "o_grande": "O(log N + k)",
       "pendiente_esperada": 0.0,
-      "pendiente_medida": -0.112,
+      "pendiente_medida": 0.319,
       "tamanos_n": [
-        500,
-        1000,
-        2000,
-        4000
+        10000,
+        20000,
+        40000,
+        80000
       ],
       "tiempos_segundos": [
-        1e-06,
-        0.0,
-        0.0,
-        0.0
+        2.2595900000510482e-06,
+        3.414847499982443e-06,
+        3.345525499980795e-06,
+        4.758091500036699e-06
       ],
       "categoria": "Consultas",
-      "explicacion": "Extracción de las k estaciones con más buses desde la estructura de ranking. Independiente o sublineal respecto a N."
+      "explicacion": "Recorrido in-order de las k primeras claves (-buses, nombre) del AVL de ranking. Plano respecto a N."
     },
     "agregar_parada (R7)": {
       "responsable": "Juandi",
       "n_def": "N = Total de estaciones",
       "o_grande": "O(1)",
       "pendiente_esperada": 0.0,
-      "pendiente_medida": -0.138,
+      "pendiente_medida": 0.169,
       "tamanos_n": [
-        500,
-        1000,
-        2000,
-        4000
+        10000,
+        20000,
+        40000,
+        80000
       ],
       "tiempos_segundos": [
-        1.1e-05,
-        7e-06,
-        8e-06,
-        7e-06
+        2.109608333360787e-05,
+        2.191704333351178e-05,
+        3.21922899998602e-05,
+        2.7445923333668057e-05
       ],
       "categoria": "Operación de Red",
       "explicacion": "Inserción en ListaDoble mediante nodo indexado en hash O(1). Pendiente plana (~0)."
@@ -159,18 +159,18 @@
       "n_def": "N = Total de estaciones",
       "o_grande": "O(1)",
       "pendiente_esperada": 0.0,
-      "pendiente_medida": -0.24,
+      "pendiente_medida": 0.157,
       "tamanos_n": [
-        500,
-        1000,
-        2000,
-        4000
+        10000,
+        20000,
+        40000,
+        80000
       ],
       "tiempos_segundos": [
-        1.3e-05,
-        7e-06,
-        7e-06,
-        7e-06
+        2.078469000025507e-05,
+        2.1291606666788237e-05,
+        2.9107580000224214e-05,
+        2.691175666654999e-05
       ],
       "categoria": "Operación de Red",
       "explicacion": "Desenlace de punteros en ListaDoble y eliminación de hash en O(1). Pendiente plana (~0)."
@@ -180,18 +180,18 @@
       "n_def": "L = Cantidad de paradas en la ruta",
       "o_grande": "O(L) ≈ O(1) resp. a N",
       "pendiente_esperada": 0.0,
-      "pendiente_medida": 0.148,
+      "pendiente_medida": 0.352,
       "tamanos_n": [
-        500,
-        1000,
-        2000,
-        4000
+        10000,
+        20000,
+        40000,
+        80000
       ],
       "tiempos_segundos": [
-        4e-06,
-        3e-06,
-        4e-06,
-        5e-06
+        1.74568500000305e-06,
+        2.0641725000132284e-06,
+        3.295213999990665e-06,
+        3.37043749999566e-06
       ],
       "categoria": "Operación de Red",
       "explicacion": "Recorrido secuencial de la lista doblemente enlazada de la ruta. Como L está acotado, no depende de N."
@@ -201,18 +201,18 @@
       "n_def": "N = Total de estaciones",
       "o_grande": "O(log N) / O(1)",
       "pendiente_esperada": 0.1,
-      "pendiente_medida": -0.475,
+      "pendiente_medida": 0.206,
       "tamanos_n": [
-        500,
-        1000,
-        2000,
-        4000
+        10000,
+        20000,
+        40000,
+        80000
       ],
       "tiempos_segundos": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
+        1.2223223333194255e-05,
+        1.258464333318443e-05,
+        1.9482016666643178e-05,
+        1.6996146666770073e-05
       ],
       "categoria": "Operación de Red",
       "explicacion": "Modificación de estado en O(1) y actualización en estructuras auxiliares O(log N). Pendiente plana (~0)."
@@ -222,18 +222,18 @@
       "n_def": "N = Total de estaciones",
       "o_grande": "O(log N) / O(1)",
       "pendiente_esperada": 0.1,
-      "pendiente_medida": -0.484,
+      "pendiente_medida": 0.168,
       "tamanos_n": [
-        500,
-        1000,
-        2000,
-        4000
+        10000,
+        20000,
+        40000,
+        80000
       ],
       "tiempos_segundos": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
+        1.122689333328708e-05,
+        1.2347120000034314e-05,
+        1.4990366666628082e-05,
+        1.551949666653248e-05
       ],
       "categoria": "Operación de Red",
       "explicacion": "Reactivación de estación y reinserción en árbol/ranking en O(log N)."
@@ -243,18 +243,18 @@
       "n_def": "N = Total de estaciones",
       "o_grande": "O(1) / O(log N)",
       "pendiente_esperada": 0.0,
-      "pendiente_medida": -0.218,
+      "pendiente_medida": 0.164,
       "tamanos_n": [
-        500,
-        1000,
-        2000,
-        4000
+        10000,
+        20000,
+        40000,
+        80000
       ],
       "tiempos_segundos": [
-        6e-06,
-        3e-06,
-        4e-06,
-        3e-06
+        1.144719333296962e-05,
+        1.2631393333322195e-05,
+        1.4502576666851989e-05,
+        1.5984553333131164e-05
       ],
       "categoria": "Historial",
       "explicacion": "Pop de la pila de deshacer en O(1) y ejecución de la acción inversa. Pendiente plana (~0)."
@@ -264,18 +264,18 @@
       "n_def": "N = Total de estaciones",
       "o_grande": "O(1) / O(log N)",
       "pendiente_esperada": 0.0,
-      "pendiente_medida": -0.142,
+      "pendiente_medida": 0.164,
       "tamanos_n": [
-        500,
-        1000,
-        2000,
-        4000
+        10000,
+        20000,
+        40000,
+        80000
       ],
       "tiempos_segundos": [
-        5e-06,
-        4e-06,
-        4e-06,
-        4e-06
+        1.0589406666667856e-05,
+        1.155622333347613e-05,
+        1.3780869999967157e-05,
+        1.459260000009029e-05
       ],
       "categoria": "Historial",
       "explicacion": "Pop de la pila de rehacer en O(1) y reaplicación de la acción. Pendiente plana (~0)."
@@ -285,18 +285,18 @@
       "n_def": "P = Cantidad de pasajeros",
       "o_grande": "O(P log P) o O(P)",
       "pendiente_esperada": 1.0,
-      "pendiente_medida": 1.137,
+      "pendiente_medida": 1.158,
       "tamanos_n": [
-        1000,
-        2000,
         4000,
-        8000
+        8000,
+        16000,
+        32000
       ],
       "tiempos_segundos": [
-        0.003267,
-        0.006885,
-        0.015148,
-        0.034706
+        0.007684689000029721,
+        0.018088304999992033,
+        0.03808698000000277,
+        0.08712300700005926
       ],
       "categoria": "Simulación",
       "explicacion": "Uso de Cola FIFO basada en lista enlazada: enqueue y dequeue en O(1). Ordenamiento inicial O(P log P). Pendiente ~1.0."
@@ -306,18 +306,18 @@
       "n_def": "P = Cantidad de pasajeros",
       "o_grande": "O(P^2)",
       "pendiente_esperada": 2.0,
-      "pendiente_medida": 1.294,
+      "pendiente_medida": 2.068,
       "tamanos_n": [
-        1000,
-        2000,
         4000,
-        8000
+        8000,
+        16000,
+        32000
       ],
       "tiempos_segundos": [
-        0.000354,
-        0.000682,
-        0.001385,
-        0.005558
+        0.001409541000043646,
+        0.0037573849999716913,
+        0.021217320000005202,
+        0.09399853299998995
       ],
       "categoria": "Simulación",
       "explicacion": "Uso de list.pop(0) prohibido: cada extracción desplaza todos los elementos O(P), totalizando O(P^2). Pendiente ~2.0."

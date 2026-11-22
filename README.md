@@ -33,8 +33,9 @@ python conversion/convertir_gtfs.py ruta/al/gtfs.zip datos/ --coordenadas
 ```
 
 ## App Desplegada
-- Servidor local: `http://localhost:8000`
-- Frontend: Interfaz web que consume el motor de busqueda y rutas a traves de endpoints REST locales, manteniendo la instancia de la red en memoria.
+La app no esta publicada en un servidor externo: se ejecuta en local con el comando unico `python app/main.py` y queda disponible en `http://localhost:8000`.
+- Frontend (`app/index.html`): interfaz web que solo llama al motor a traves de endpoints REST de `app/main.py`; la instancia de la red vive en memoria del servidor.
+- Panel de rendimiento (R11): pestaña "Panel Rendimiento" de la misma app, con una grafica log-log por operacion (medido vs. esperado) y la tabla de pendientes.
 
 ---
 
@@ -135,26 +136,28 @@ $$\text{Pendiente} = \frac{\Delta \log(\text{Tiempo})}{\Delta \log(N)}$$
 
 ### Resumen de Pendientes Obtenidas
 
+Corrida oficial: `python panel/medir_rendimiento.py --completo`, redes sinteticas de 10.000, 20.000, 40.000 y 80.000 estaciones, 3 repeticiones por medicion (se toma la mediana). Cada medicion corre un lote de 2.000 consultas distintas (300 en las operaciones que cambian la red) y divide por el tamano del lote, porque una sola llamada dura menos de un microsegundo y su tiempo seria ruido del reloj. Para la fila, $P$ = 4.000, 8.000, 16.000 y 32.000 pasajeros. Los tiempos completos quedan en `panel/resultados_rendimiento.json` y la app los grafica en la pestana "Panel Rendimiento".
+
 | Operacion | Responsable | Variable $n$ | Complejidad Teorica | Pendiente Esp. | Pendiente Med. | Diagnostico |
 | :--- | :--- | :--- | :--- | :---: | :---: | :---: |
-| Carga Red | Juandi / Todos | $N$ = Estaciones | $O(N \log N)$ | 1.0 | 0.9 | Conforme |
-| estado (R1) | Sebas | $N$ = Estaciones | $O(1)$ / $O(\log N)$ | 0.0 | -0.1 | Conforme |
-| autocompletar (R2) | Sebas | $N$ = Abiertas, $k$ | $O(\log N + k)$ | 0.1 | -0.2 | Conforme |
-| rango (R3) | Sebas | $N$ = Abiertas, $m$ | $O(\log N + m)$ | 0.1 | -0.3 | Conforme |
-| proximo_bus (R4) | Gabito | $H$ = Horarios parada | $O(\log H) \approx O(1)$ | 0.0 | -0.2 | Conforme |
-| ranking (R6) | Gabito | $k$, $N$ = Abiertas | $O(k \log N)$ / $O(k)$ | 0.0 | -0.1 | Conforme |
-| agregar_parada (R7) | Juandi | $N$ = Estaciones | $O(1)$ | 0.0 | -0.1 | Conforme |
-| quitar_parada (R7) | Juandi | $N$ = Estaciones | $O(1)$ | 0.0 | -0.2 | Conforme |
-| recorrido (R7) | Juandi | $L$ = Paradas ruta | $O(L) \approx O(1)$ | 0.0 | 0.1 | Conforme |
-| cerrar (R8) | Sebas | $N$ = Estaciones | $O(\log N)$ | 0.1 | -0.5 | Ruido en stubs |
-| reabrir (R8) | Sebas | $N$ = Estaciones | $O(\log N)$ | 0.1 | -0.5 | Ruido en stubs |
-| deshacer (R9) | Juandi | $N$ = Estaciones | $O(1)$ | 0.0 | -0.2 | Conforme |
-| rehacer (R9) | Juandi | $N$ = Estaciones | $O(1)$ | 0.0 | -0.1 | Conforme |
-| simular_fila (R10) | Juandi | $P$ = Pasajeros | $O(P \log P)$ / $O(P)$ | 1.0 | 1.1 | Conforme |
-| simular_fila_pop0 | Juandi | $P$ = Pasajeros | $O(P^2)$ | 2.0 | 1.3 - 1.8 | Penalizacion pop(0) |
+| Carga Red | Juandi / Todos | $N$ = Estaciones | $O(N \log N)$ | 1.0 | 1.26 | Conforme |
+| estado (R1) | Sebas | $N$ = Estaciones | $O(1)$ | 0.0 | 0.21 | Conforme |
+| autocompletar (R2) | Sebas | $N$ = Abiertas, $k$ | $O(\log N + k)$ | 0.1 | 0.06 | Conforme |
+| rango (R3) | Sebas | $N$ = Abiertas, $m$ = 20 | $O(\log N + m)$ | 0.1 | 0.27 | Conforme |
+| proximo_bus (R4) | Gabito | $H$ = Horarios parada | $O(\log H) \approx O(1)$ | 0.0 | 0.14 | Conforme |
+| ranking (R6) | Gabito | $k$ = 10, $N$ = Abiertas | $O(\log N + k)$ | 0.0 | 0.32 | Conforme |
+| agregar_parada (R7) | Juandi | $N$ = Estaciones | $O(1)$ + $O(\log N)$ del ranking | 0.0 | 0.17 | Conforme |
+| quitar_parada (R7) | Juandi | $N$ = Estaciones | $O(1)$ + $O(\log N)$ del ranking | 0.0 | 0.16 | Conforme |
+| recorrido (R7) | Juandi | $L$ = Paradas ruta | $O(L) \approx O(1)$ | 0.0 | 0.35 | Conforme |
+| cerrar (R8) | Sebas | $N$ = Estaciones | $O(\log N)$ | 0.1 | 0.21 | Conforme |
+| reabrir (R8) | Sebas | $N$ = Estaciones | $O(\log N)$ | 0.1 | 0.17 | Conforme |
+| deshacer (R9) | Juandi | $N$ = Estaciones | $O(1)$ + costo del cambio | 0.0 | 0.16 | Conforme |
+| rehacer (R9) | Juandi | $N$ = Estaciones | $O(1)$ + costo del cambio | 0.0 | 0.16 | Conforme |
+| simular_fila (R10) | Juandi | $P$ = Pasajeros | $O(P \log P)$ | 1.0 | 1.16 | Conforme |
+| simular_fila_pop0 | Juandi | $P$ = Pasajeros | $O(P^2)$ | 2.0 | 2.07 | Penalizacion pop(0) |
 
 ### Analisis de Variaciones Observadas
-1. **Ruido en mediciones de microsegundos:** Para rutinas de orden $O(1)$ cuyo tiempo de ejecucion es inferior a un microsegundo, las interrupciones minimas del sistema operativo generan variaciones residuales que arrojan pendientes ligeramente negativas. Esto certifica que el tiempo no crece en funcion de $N$.
+1. **Pendientes entre 0.1 y 0.4 en operaciones $O(1)$ u $O(\log N)$:** no vienen del algoritmo sino de la memoria. La tabla hash mantiene el mismo factor de carga (~0.61) y cadenas promedio de ~1.34 nodos tanto en 10.000 como en 80.000 estaciones, y el AVL sube apenas de ~14 a ~17 niveles. Lo que cambia es que con 80.000 estaciones los nodos ya no caben en la cache del procesador y cada salto de puntero tarda un poco mas. La carga y la fila quedan algo por encima de 1.0 por el factor $\log N$ y por el costo de Python al crear millones de objetos.
 2. **Costo amortizado en TablaHash:** Las operaciones de insercion sufren un costo puntual al duplicar el tamano de la tabla cuando se sobrepasa el umbral de carga, manteniendo un promedio $O(1)$ amortizado a lo largo del tiempo.
 3. **Evidencia empirica de `pop(0)`:** La implementacion con `Cola` presenta una pendiente de $\approx 1.1$ (lineal con los pasajeros), mientras que `simular_fila_pop0` exhibe una pendiente marcadamente superior debido al costo de reindexacion interna de la lista de Python.
 
