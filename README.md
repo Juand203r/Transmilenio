@@ -26,6 +26,12 @@ El servidor web utiliza exclusivamente librerias estandar de Python (`http.serve
 pip install -r requirements.txt
 ```
 
+Para regenerar los tres CSV desde el GTFS (y, opcionalmente, las coordenadas para el mapa):
+
+```bash
+python conversion/convertir_gtfs.py ruta/al/gtfs.zip datos/ --coordenadas
+```
+
 ## App Desplegada
 - Servidor local: `http://localhost:8000`
 - Frontend: Interfaz web que consume el motor de busqueda y rutas a traves de endpoints REST locales, manteniendo la instancia de la red en memoria.
@@ -53,7 +59,7 @@ pip install -r requirements.txt
 - **Complejidad:** $O(\log N + m)$ promedio, donde $N$ es el total de estaciones abiertas y $m$ es el numero de estaciones contenidas en el intervalo.
 
 ### R4. Proximo Bus (`red.proximo_bus(estacion, ruta, hora)`)
-- **Estructura y algoritmo:** Tabla hash con clave compuesta `"ruta|estacion"` que almacena la lista de horarios del dia en minutos ordenada ascendentemente, sobre la cual se aplica busqueda binaria de la primera cota superior ($\ge hora$).
+- **Estructura y algoritmo:** Tabla hash con clave compuesta `"ruta|estacion"` que almacena la lista de horarios del dia en minutos ordenada ascendentemente, sobre la cual se aplica busqueda binaria de la primera cota superior ($\ge hora$) (`primer_mayor_o_igual` en `motor/ordenar.py`). Las listas se ordenan una sola vez al cargar `horarios.csv` con `merge_sort`, que primero revisa en $O(H)$ si ya vienen ordenadas (lo normal en el GTFS) y solo en caso contrario ordena en $O(H \log H)$. La hora se devuelve como texto `HH:MM` (1510 minutos se devuelven como `25:10`).
 - **Por que:** Una estacion puede registrar cientos de despachos diarios. La busqueda binaria localiza el horario adecuado en a lo sumo $\lceil \log_2(H) \rceil \le 8$ comparaciones.
 - **Alternativa descartada:** Busqueda secuencial en la lista de horarios. Recorrer linealmente las salidas en cada consulta resulta ineficiente frente a la particion logaritmica.
 - **Complejidad:** $O(1)$ para recuperar la lista de la tabla hash + $O(\log H)$ de la busqueda binaria, donde $H$ es la cantidad de horarios diarios de esa ruta en esa parada. Respecto a $N$ (tamano de la red), la complejidad es $O(1)$.
@@ -69,10 +75,10 @@ pip install -r requirements.txt
 - **Complejidad:** $O(R \cdot L)$, donde $R$ es el numero de rutas por estacion ($R \le 10$) y $L$ la cantidad de paradas de la ruta ($L \le 35$). Es independiente de $N$ (total de estaciones de la ciudad).
 
 ### R6. Ranking de Estaciones (`red.ranking(k)`)
-- **Estructura y algoritmo:** Estructura ordenada (lista doblemente enlazada ordenada por `buses_dia` descendente o monticulo maximo) sincronizada mediante los ganchos `_ranking_actualizar`, `_ranking_quitar` y `_ranking_poner`.
+- **Estructura y algoritmo:** Arbol binario de busqueda balanceado (AVL, `motor/ranking.py`) con claves `(-buses_dia, nombre)` de las estaciones abiertas, mas una tabla hash `nombre -> clave actual`. Por el signo menos, el recorrido in-order entrega primero las estaciones con mas buses y, en empate, en orden alfabetico. `ranking(k)` baja hasta la clave minima y recorre in-order solo $k$ nodos (con una pila, sin recursion). Se arma al cargar en $O(N)$ desde las claves ya ordenadas con `merge_sort` (el elemento del medio es la raiz) y se sincroniza con los ganchos `_ranking_quitar` (cerrar), `_ranking_poner` (reabrir) y `_ranking_actualizar` (editar rutas cambia `buses_dia`). La tabla hash recuerda la clave vieja, que es la que hay que borrar del arbol cuando `buses_dia` ya cambio.
 - **Por que:** El ranking se consulta repetidamente pero sufre modificaciones unicamente ante eventos de cierre, reapertura o edicion de paradas. Mantener el orden de forma incremental permite responder en $O(k)$ sin recalcular toda la red.
-- **Alternativa descartada:** Ordenar todas las estaciones con `merge_sort` en cada invocacion de `ranking(k)`. En una red de 80.000 estaciones, ordenar todo el conjunto representaria un costo de $O(N \log N)$ por peticion.
-- **Complejidad:** $O(k)$ para extraer las $k$ primeras estaciones (o $O(k \log N)$ si se utiliza un heap), donde $k$ es el parametro solicitado y $N$ el total de estaciones abiertas.
+- **Alternativas descartadas:** (1) Ordenar todas las estaciones con `merge_sort` en cada invocacion de `ranking(k)`: $O(N \log N)$ por peticion. (2) Arreglo o lista enlazada ordenada: la consulta seria $O(k)$, pero reubicar una estacion al cerrar, reabrir o editar cuesta $O(N)$. (3) Monticulo maximo: actualiza en $O(\log N)$, pero sacar el top $k$ cuesta $O(k \log N)$ y borrar una estacion cualquiera (cerrarla) no es directo. (4) ABB sin balancear: con claves que llegan ordenadas se degenera en una lista y todo pasa a $O(N)$; el AVL rota para mantener altura $O(\log N)$.
+- **Complejidad:** `ranking(k)` en $O(\log N + k)$; `_ranking_quitar`, `_ranking_poner` y `_ranking_actualizar` en $O(\log N)$; construccion en $O(N \log N)$ por el ordenamiento inicial. $N$ es el total de estaciones abiertas y $k$ el numero pedido. Medido de 10.000 a 80.000 estaciones: pendiente de `ranking(10)` y de editar rutas cercana a 0.
 
 ### R7. Recorrido y Edicion de Rutas (`agregar_parada`, `quitar_parada`, `recorrido`)
 - **Estructura y algoritmo:** `ListaDoble` con indice interno mediante tabla hash (`self.indice`) que mapea nombre de estacion a su respectivo `Node`.
@@ -167,7 +173,7 @@ $$\text{Pendiente} = \frac{\Delta \log(\text{Tiempo})}{\Delta \log(N)}$$
 > Se utiliza una tabla hash para indexar hacia atras las estaciones alcanzables desde el destino con sus paradas acumuladas, y un recorrido hacia adelante sobre la lista doblemente enlazada de cada ruta del origen. Esta eleccion resuelve el transbordo en $O(R \cdot L)$ desacoplando las rutas, en comparacion con el costo $O(R^2 \cdot L^2)$ de bucles anidados o el consumo excesivo de memoria de un BFS sobre la red global. Se descarto la busqueda en anchura general porque instanciar y recorrer un grafo de 80.000 estaciones en cada peticion tomaria segundos. La complejidad final es $O(R \cdot L)$, donde $R$ es el numero de rutas por estacion y $L$ las paradas por ruta ($R, L \ll N$), resultando totalmente independiente del total de estaciones de la ciudad.
 
 ### P4 (R6 y R8). Ranking y Cierre/Reapertura
-- **Justificacion:** Al cerrar una estacion, la regla de negocio exige que no figure en el ranking. En lugar de reordenar las $N$ estaciones en cada cierre o apertura ($O(N \log N)$), se aplican ganchos de sincronizacion (`_ranking_quitar` y `_ranking_poner`) que retiran o reinsertan el registro en $O(\log N)$ o $O(1)$, preservando la disponibilidad de consultas inmediatas en $O(k)$.
+- **Justificacion:** Al cerrar una estacion, la regla de negocio exige que no figure en el ranking. En lugar de reordenar las $N$ estaciones en cada cierre o apertura ($O(N \log N)$), los ganchos `_ranking_quitar` y `_ranking_poner` borran o reinsertan su clave `(-buses_dia, nombre)` en el AVL en $O(\log N)$, y `ranking(k)` sigue respondiendo en $O(\log N + k)$. Si se usara un arreglo ordenado, cada cierre correria elementos ($O(N)$); con un heap, sacar el top $k$ costaria $O(k \log N)$ y borrar una estacion del medio no es directo.
 
 ### P5 (R7 y R9). Edicion de Rutas y Transacciones
 - **Justificacion:** La lista doblemente enlazada permite reasignar punteros en $O(1)$. Para no incurrir en la busqueda lineal de la estacion previa ($O(L)$), cada ruta indexa sus nodos en una tabla hash interna. Para el historial se utilizan pilas LIFO donde `push` y `pop` toman $O(1)$ y permiten revertir mutaciones puntuales sin clonar el estado de la red.
