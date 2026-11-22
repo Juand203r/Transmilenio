@@ -2,6 +2,9 @@
 __pycache__/
 *.py[codz]
 *$py.class
+panel/redes_benchmark/
+datos_sinteticos*/
+tests/test_red_*
 
 # C extensions
 *.so
