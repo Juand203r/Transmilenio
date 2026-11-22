@@ -5,6 +5,7 @@ from .lista_doble import ListaDoble
 from .ordenar import merge_sort
 from .pila import Pila
 from .tabla_hash import TablaHash
+from .viaje import planear_viaje
 
 
 def _unir(carpeta, archivo):
@@ -120,7 +121,7 @@ class Red:
         pass
 
     def viaje(self, origen, destino):
-        pass
+        return planear_viaje(self, origen, destino)
 
     def ranking(self, k):
         pass
