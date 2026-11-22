@@ -3,7 +3,7 @@
 Estructuras de Datos y Algoritmos - Proyecto Final  
 Universidad de La Sabana  
 Profesor: Sebastian Silva  
-Integrantes: Juan Jose Bode, Juan Diego Lozano, Sebastian Ramirez, Gabriel Matiz  
+Integrantes: Juan Sebastian Bode Velasquez, Juan Diego Lozano Ortiz, Gabriel Alejandro Matiz Mora, Juan Sebastian Ramirez Pico  
 
 ---
 
