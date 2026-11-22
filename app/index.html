@@ -397,6 +397,10 @@
             <button class="btn btn-primary" onclick="cargarRendimiento()">🔄 Actualizar Datos de Benchmark</button>
           </div>
 
+          <h3 style="font-size:15px; margin-bottom:6px;">Tiempo contra n (escala log-log)</h3>
+          <p class="card-desc" style="margin-bottom:12px;">Línea continua: tiempo medido. Línea punteada: la complejidad que esperábamos, anclada en el primer tamaño. Si las dos van paralelas, la operación crece como dijimos.</p>
+          <div id="graficas-rendimiento" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:12px; margin-bottom:24px;"></div>
+
           <table class="data-table" id="tabla-rendimiento">
             <thead>
               <tr>
@@ -415,7 +419,8 @@
           </table>
 
           <div style="margin-top: 24px; padding: 16px; background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; font-size: 13px;">
-            <strong>Nota de interpretación:</strong> Las pendientes cercanas a 0.0 certifican operaciones de orden constante O(1) o logarítmico O(log N). La comparación de <em>simular_fila</em> (pendiente ~1.0) frente a <em>simular_fila_pop0</em> (pendiente ~1.5-2.0) evidencia empíricamente la penalización cuadrática por usar operaciones prohibidas en arreglos.
+            <strong>Nota de interpretación:</strong> Las pendientes cercanas a 0.0 certifican operaciones de orden constante O(1) o logarítmico O(log N). La comparación de <em>simular_fila</em> (pendiente ~1.0) frente a <em>simular_fila_pop0</em> (pendiente ~1.5-2.0) evidencia empíricamente la penalización cuadrática por usar operaciones prohibidas en arreglos.<br><br>
+            <strong>Cuando la medición no coincide del todo:</strong> en las operaciones de menos de un microsegundo (como <em>estado</em> o <em>proximo_bus</em>) la pendiente puede salir entre 0.2 y 0.5 aunque el algoritmo sea O(1) u O(log N). No es el algoritmo: la tabla hash mantiene el mismo factor de carga (~0.6) y cadenas de ~1.3 nodos en 10.000 y en 80.000 estaciones. Lo que cambia es la memoria: con 80.000 estaciones los nodos ya no caben en la caché del procesador y cada acceso tarda un poco más. La carga y la fila dan un poco más de 1 por el factor log n y por el costo de crear millones de objetos en Python.
           </div>
         </div>
       </section>
@@ -724,6 +729,55 @@
     }
 
     // R11: Panel de Rendimiento
+    // R11: una gráfica log-log por operación, medido vs. esperado (SVG sin librerías)
+    function curvaEsperada(item, ns, t0) {
+      const n0 = ns[0];
+      const o = (item.o_grande || '').toUpperCase();
+      if (o.includes('N LOG N') || o.includes('P LOG P')) {
+        return ns.map(n => t0 * (n * Math.log(n)) / (n0 * Math.log(n0)));
+      }
+      return ns.map(n => t0 * Math.pow(n / n0, item.pendiente_esperada));
+    }
+
+    function dibujarGraficas(ops) {
+      const cont = document.getElementById('graficas-rendimiento');
+      const W = 250, H = 160, m = { l: 46, r: 10, t: 34, b: 28 };
+      cont.innerHTML = Object.keys(ops).map(op => {
+        const item = ops[op];
+        const ns = item.tamanos_n, ts = item.tiempos_segundos;
+        if (!ns || !ts || ts.some(t => !(t > 0))) return '';
+        const esp = curvaEsperada(item, ns, ts[0]);
+        const todos = ts.concat(esp);
+        const lx = v => Math.log10(v);
+        const xmin = lx(ns[0]), xmax = lx(ns[ns.length - 1]);
+        let ymin = Math.min(...todos.map(lx)), ymax = Math.max(...todos.map(lx));
+        // rango mínimo de 1.2 décadas: de 10k a 80k una operación lineal sube 0.9, así lo plano se ve plano
+        if (ymax - ymin < 1.2) { const c = (ymax + ymin) / 2; ymin = c - 0.6; ymax = c + 0.6; }
+        const X = v => m.l + (lx(v) - xmin) / (xmax - xmin) * (W - m.l - m.r);
+        const Y = v => H - m.b - (lx(v) - ymin) / (ymax - ymin) * (H - m.t - m.b);
+        const linea = arr => arr.map((v, i) => `${i ? 'L' : 'M'}${X(ns[i]).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+        const fmt = t => t >= 1 ? t.toFixed(2) + ' s' : t >= 1e-3 ? (t * 1e3).toFixed(1) + ' ms' : (t * 1e6).toFixed(2) + ' µs';
+        const ok = Math.abs(item.pendiente_esperada - item.pendiente_medida) <= 0.4;
+        const puntos = ts.map((t, i) => `<circle cx="${X(ns[i]).toFixed(1)}" cy="${Y(t).toFixed(1)}" r="3" fill="var(--tm-red)"><title>n=${ns[i]}: ${fmt(t)}</title></circle>`).join('');
+        const etiquetasX = ns.map(n => `<text x="${X(n).toFixed(1)}" y="${H - 10}" font-size="9" text-anchor="middle" fill="#718096">${n >= 1000 ? (n / 1000) + 'k' : n}</text>`).join('');
+        return `<div style="background:white; border:1px solid var(--tm-border); border-radius:8px; padding:6px;">
+          <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${op}: tiempo contra n">
+            <text x="${m.l}" y="14" font-size="11" font-weight="600" fill="#2D3748">${op}</text>
+            <text x="${m.l}" y="27" font-size="10" fill="${ok ? '#38A169' : '#D69E2E'}">pend. ${item.pendiente_medida.toFixed(2)} (esp. ${item.pendiente_esperada})</text>
+            <line x1="${m.l}" y1="${H - m.b}" x2="${W - m.r}" y2="${H - m.b}" stroke="#E2E8F0"/>
+            <line x1="${m.l}" y1="${m.t}" x2="${m.l}" y2="${H - m.b}" stroke="#E2E8F0"/>
+            <text x="${m.l - 4}" y="${m.t + 8}" font-size="9" text-anchor="end" fill="#718096">${fmt(Math.pow(10, ymax))}</text>
+            <text x="${m.l - 4}" y="${H - m.b}" font-size="9" text-anchor="end" fill="#718096">${fmt(Math.pow(10, ymin))}</text>
+            ${etiquetasX}
+            <path d="${linea(esp)}" fill="none" stroke="#718096" stroke-width="1.5" stroke-dasharray="5 4"/>
+            <path d="${linea(ts)}" fill="none" stroke="var(--tm-red)" stroke-width="2"/>
+            ${puntos}
+          </svg>
+          <div style="font-size:11px; color:#718096; padding:0 4px 2px;">${item.o_grande} · ${item.n_def}</div>
+        </div>`;
+      }).join('');
+    }
+
     async function cargarRendimiento() {
       const tbody = document.getElementById('rendimiento-body');
       tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Consultando métricas de rendimiento...</td></tr>';
@@ -750,6 +804,7 @@
           `;
         }).join('');
         tbody.innerHTML = filasHtml;
+        dibujarGraficas(ops);
       } catch (err) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">Error al cargar datos de rendimiento.</td></tr>';
       }
