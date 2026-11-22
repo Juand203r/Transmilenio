@@ -64,10 +64,10 @@ TABLA_ESPERADA = {
     "ranking (R6)": {
         "responsable": "Gabito",
         "n_def": "k = cupo pedido, N = estaciones abiertas",
-        "o_grande": "O(k log N) o O(k)",
+        "o_grande": "O(log N + k)",
         "pendiente_esperada": 0.0,
         "categoria": "Consultas",
-        "explicacion": "Extracción de las k estaciones con más buses desde la estructura de ranking. Independiente o sublineal respecto a N.",
+        "explicacion": "Recorrido in-order de las k primeras claves (-buses, nombre) del AVL de ranking. Plano respecto a N.",
     },
     "agregar_parada (R7)": {
         "responsable": "Juandi",

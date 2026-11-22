@@ -2,8 +2,9 @@ import csv
 
 from .historial import AccionAgregarParada, AccionCerrar, AccionQuitarParada, AccionReabrir
 from .lista_doble import ListaDoble
-from .ordenar import merge_sort
+from .ordenar import merge_sort, primer_mayor_o_igual
 from .pila import Pila
+from .ranking import Ranking
 from .tabla_hash import TablaHash
 from .viaje import planear_viaje
 
@@ -13,6 +14,21 @@ def _unir(carpeta, archivo):
     if carpeta.endswith("/") or carpeta.endswith("\\"):
         return carpeta + archivo
     return carpeta + "/" + archivo
+
+
+def _a_minutos(hora):
+    """'HH:MM' -> minutos desde las 00:00. Las horas del GTFS mayores a 24
+    (25:10) quedan continuas: 25*60+10 = 1510. None si el texto no es una hora."""
+    try:
+        partes = str(hora).strip().split(":")
+        return int(partes[0]) * 60 + int(partes[1])
+    except (ValueError, IndexError):
+        return None
+
+
+def _a_texto(minutos):
+    """Minutos -> 'HH:MM' (1510 -> '25:10')."""
+    return str(minutos // 60).zfill(2) + ":" + str(minutos % 60).zfill(2)
 
 
 def _esta_ordenada(pares):
@@ -85,22 +101,71 @@ class Red:
             self.rutas.set(ruta, lista)
 
     def _cargar_horarios(self, carpeta):
-        pass
+        """Lee horarios.csv (Gabriel Matiz).
+
+        Agrupa las horas en la TablaHash horarios con clave "ruta|estacion",
+        como lista de minutos ordenada de menor a mayor (merge_sort, que en
+        O(m) detecta si ya viene ordenada). Suma a buses_dia de cada estación
+        los horarios de las rutas que de verdad paran en ella.
+        Costo: O(F) para leer las F filas + O(m log m) por cada lista.
+        """
+        grupos = []  # (lista, ruta, estacion) en el orden en que aparecen
+        with open(_unir(carpeta, "horarios.csv"), newline="", encoding="utf-8") as archivo:
+            lector = csv.reader(archivo)
+            next(lector, None)
+            for fila in lector:
+                if len(fila) < 3:
+                    continue
+                minutos = _a_minutos(fila[2])
+                if minutos is None:
+                    continue
+                clave = fila[0] + "|" + fila[1]
+                lista = self.horarios.get(clave)
+                if lista is None:
+                    lista = []
+                    self.horarios.set(clave, lista)
+                    grupos.append((lista, fila[0], fila[1]))
+                lista.append(minutos)
+        for grupo in grupos:
+            lista = grupo[0]
+            ordenada = merge_sort(lista)
+            lista[:] = ordenada
+            recorrido = self.rutas.get(grupo[1])
+            estacion = self.estaciones.get(grupo[2])
+            if recorrido is not None and estacion is not None and recorrido.contiene(grupo[2]):
+                estacion.buses_dia += len(lista)
 
     def _construir_abiertas(self):
         pass
 
     def _construir_ranking(self):
-        pass
+        """Arma el ranking (R6) con las estaciones abiertas: ordena las claves
+        (-buses_dia, nombre) con merge_sort y construye el AVL desde la mitad. O(N log N)."""
+        claves = []
+        for estacion in self.estaciones.valores():
+            if estacion.abierta:
+                claves.append((-estacion.buses_dia, estacion.nombre))
+        self.ranking_estructura = Ranking()
+        self.ranking_estructura.construir(merge_sort(claves))
 
     def _ranking_quitar(self, nombre):
-        pass
+        """Saca la estación del ranking (al cerrarla). O(log N)."""
+        return self.ranking_estructura.quitar(nombre)
 
     def _ranking_poner(self, nombre):
-        pass
+        """Vuelve a meter la estación con sus buses actuales (al reabrirla). O(log N)."""
+        estacion = self.estaciones.get(nombre)
+        if estacion is None:
+            return False
+        return self.ranking_estructura.poner(nombre, estacion.buses_dia)
 
     def _ranking_actualizar(self, nombre):
-        pass
+        """Reubica la estación si cambiaron sus buses_dia (editar rutas). O(log N).
+        Si está cerrada no está en el ranking y no se toca."""
+        estacion = self.estaciones.get(nombre)
+        if estacion is None:
+            return False
+        return self.ranking_estructura.actualizar(nombre, estacion.buses_dia)
 
     def _abiertas_quitar(self, nombre):
         pass
@@ -118,13 +183,34 @@ class Red:
         pass
 
     def proximo_bus(self, estacion, ruta, hora):
-        pass
+        """R4 (Gabriel Matiz): hora 'HH:MM' del primer bus de esa ruta en esa
+        estación a la hora pedida o después; None si no hay más ese día, si la
+        estación no existe o está cerrada, o si la ruta no para ahí.
+        O(1) para llegar a la lista + O(log H) de búsqueda binaria,
+        H = buses de esa ruta en esa estación."""
+        est = self.estaciones.get(estacion)
+        if est is None or not est.abierta:
+            return None
+        recorrido = self.rutas.get(ruta)
+        if recorrido is None or not recorrido.contiene(estacion):
+            return None
+        horas = self.horarios.get(ruta + "|" + estacion)
+        objetivo = _a_minutos(hora)
+        if horas is None or objetivo is None:
+            return None
+        pos = primer_mayor_o_igual(horas, objetivo)
+        if pos == len(horas):
+            return None
+        return _a_texto(horas[pos])
 
     def viaje(self, origen, destino):
         return planear_viaje(self, origen, destino)
 
     def ranking(self, k):
-        pass
+        """R6 (Gabriel Matiz): lista de (nombre, buses_por_dia) de las k estaciones
+        abiertas con más buses, de mayor a menor (empates en orden alfabético).
+        O(log N + k)."""
+        return self.ranking_estructura.primeros(k)
 
     def _agregar_parada(self, ruta, nueva, despues_de):
         """Agrega nueva justo después de despues_de. Devuelve True si cambió algo."""
