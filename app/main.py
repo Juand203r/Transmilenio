@@ -111,16 +111,7 @@ class TransmilenioHandler(SimpleHTTPRequestHandler):
 
         if ruta == "/api/estado":
             nom = _p("nombre")
-            res = red_global.estado(nom)
-            if res is None:
-                # Si el método en red aún no está implementado por Sebas, consulta segura
-                est = red_global.estaciones.get(nom)
-                if est is None:
-                    res = "NO EXISTE"
-                elif est.abierta:
-                    res = "ABIERTA"
-                else:
-                    res = "CERRADA"
+            res = red_global.estado(nom)  # toda la regla vive en el motor (R1)
             self._responder_json({"estado": res})
             return
 
